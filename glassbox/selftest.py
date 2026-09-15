@@ -18,6 +18,7 @@ Run it with ``python -m glassbox.selftest`` or ``GET /selftest``.
 from __future__ import annotations
 
 import math
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -372,7 +373,18 @@ def run_all(engine: "Glassbox") -> list[Check]:
             f"top={TEST_DOCS[best][0]}",
         )
     else:
-        add("rerank", "重排器（未启用，已优雅降级）", True, f"model={resolve_rerank_model()}")
+        # Graceful degradation is the right behaviour on a laptop that is
+        # offline, and a trap in CI: with no reranker the group below has
+        # nothing to say, so a failed checkpoint download would *shrink* the
+        # suite instead of failing it — a green run that never exercised the
+        # code under test.  GLASSBOX_REQUIRE_RERANK turns that silence red.
+        required = os.environ.get("GLASSBOX_REQUIRE_RERANK", "").lower() in {"1", "true", "yes"}
+        add(
+            "rerank",
+            "重排器必须启用（GLASSBOX_REQUIRE_RERANK）" if required else "重排器（未启用，已优雅降级）",
+            not required,
+            f"model={resolve_rerank_model()}",
+        )
 
     # The reranker is a signal, not a veto.  Inject a hostile cross-encoder
     # that scores the shortlist in exactly the reverse order and assert the

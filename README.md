@@ -1,5 +1,7 @@
 # Glassbox
 
+[![selftest](https://github.com/CJX0712/glassbox/actions/workflows/selftest.yml/badge.svg)](https://github.com/CJX0712/glassbox/actions/workflows/selftest.yml)
+
 **全离线 · 玻璃盒式检索增强生成引擎 —— 它不只给答案，还给「它是怎么找到这个答案的」。**
 
 > 几乎所有 RAG demo 都是个黑盒：你敲一个问题，一段文字浮出来，你无从知道检索器到底召回了什么，
@@ -25,6 +27,7 @@
 - [逐阶段原理](#逐阶段原理)
 - [自我纠错循环](#自我纠错循环)
 - [不变量自检](#不变量自检)
+- [持续集成](#持续集成)
 - [命令行](#命令行)
 - [配置](#配置)
 - [设计取舍](#设计取舍)
@@ -232,7 +235,7 @@ RRF 顺序再融合一次：
 | 重排 | 重排器可运行；重排确定性；**重排把最相关段落排到第一** |
 | 生成 | **自动线程数落在 2-4 区间**；不超过逻辑核数；LLM 可加载或已优雅降级；无模型时仍有 grounded 摘录答案 |
 
-其中四条特别值得一提：
+其中五条特别值得一提：
 
 1. **FAISS vs 暴力搜索** —— 同一批向量，两条完全独立的实现路径必须返回同样的邻居。
    出现分歧时，你能立刻知道是**哪一条**错了，而不是笼统地"检索不准"。
@@ -252,6 +255,18 @@ RRF 顺序再融合一次：
    直接设成重排顺序」这个改法。
 
 </details>
+
+### 持续集成
+
+`.github/workflows/selftest.yml` 在每次 push 与 PR 上跑这套自检，矩阵为
+`ubuntu-latest` + `windows-latest`（Python 3.13），外加 `ubuntu + 3.10` 压住声明支持的版本下界。
+
+- **检查点是缓存的**：真正花时间的只有 pip 安装。模型缓存的 key 绑在
+  `requirements.txt` 的哈希上，依赖一变就重新拉。
+- **`GLASSBOX_REQUIRE_RERANK=1`**：默认行为是「没有重排模型就优雅降级」，这在离线笔记本上
+  是对的，在 CI 里却是陷阱 —— **重排整组会凭空消失，套件缩小而不是变红**，换来一个从未
+  执行过被测代码的绿灯。这个开关把那片沉默变成一次失败。
+- 每次运行的完整报告作为 artifact 上传，保留 14 天。
 
 ---
 
@@ -297,6 +312,7 @@ Q  为什么混合检索要用 RRF 而不是加权分数相加
 | `GLASSBOX_EMBED_MODEL` | 自动 | 强制指定嵌入模型 |
 | `GLASSBOX_RERANK_MODEL` | 自动 | 强制指定重排模型 |
 | `GLASSBOX_DISABLE_RERANK` | – | 设为 `1` 关闭重排 |
+| `GLASSBOX_REQUIRE_RERANK` | – | 设为 `1` 时，重排未启用**视为失败**而非优雅降级（CI 用，见[持续集成](#持续集成)） |
 | `GLASSBOX_LLM_REPO` / `_FILE` | Qwen2.5-0.5B GGUF | 生成模型 |
 | `GLASSBOX_LLM_THREADS` | `0`（自动 = 2–4） | 生成线程数，别调大，见[实测结果](#生成吞吐线程数是个大坑) |
 | `GLASSBOX_DATA` | `./.glassbox` | 索引与模型的存放目录 |
@@ -415,6 +431,8 @@ python -m glassbox retrieve "RRF 是怎么把两路结果融合的"   # 对比�
 
 ```
 glassbox/
+├── .github/workflows/
+│   └── selftest.yml      # CI：多平台跑不变量自检
 ├── glassbox/
 │   ├── config.py         # 路径、模型注册表、自适应选型
 │   ├── text.py           # 归一化、句子感知分块、CJK 分词
