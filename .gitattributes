@@ -1,0 +1,15 @@
+# Normalise line endings on commit (repo side stays LF)
+* text=auto eol=lf
+
+# Windows launcher must keep CRLF
+*.bat text eol=crlf
+
+# Shell scripts must stay LF or they break under WSL / Git Bash / Linux
+*.sh text eol=lf
+
+# Binary assets: never touch
+*.png binary
+*.jpg binary
+*.gguf binary
+*.faiss binary
+*.npy binary

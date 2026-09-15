@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glassbox · 离线玻璃盒检索增强引擎</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --panel:#ffffff;
+    --panel-2:#fbfbfd;
+    --ink:#14161c;
+    --ink-2:#414651;
+    --muted:#7a828f;
+    --line:#e4e6ec;
+    --line-2:#eef0f4;
+    --accent:#4f46e5;
+    --accent-soft:#eef0ff;
+    --sparse:#0d9488;
+    --dense:#7c3aed;
+    --fused:#2563eb;
+    --rerank:#ea580c;
+    --ok:#0f9d58;
+    --bad:#dc2626;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:14px;line-height:1.62;-webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--panel);border-bottom:1px solid var(--line);
+    padding:16px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    position:sticky;top:0;z-index:20;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand h1{font-size:17px;margin:0;letter-spacing:-.01em;font-weight:650}
+  .brand .dot{color:var(--accent);font-size:20px;line-height:1}
+  .brand .sub{color:var(--muted);font-size:12.5px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .chip{
+    border:1px solid var(--line);background:var(--panel-2);border-radius:999px;
+    padding:3px 11px;font-size:11.5px;color:var(--ink-2);white-space:nowrap;
+  }
+  .chip b{font-weight:600;color:var(--ink)}
+  .chip.on{border-color:#c7f0dc;background:#eefaf3;color:#0b6b45}
+
+  /* ---------- layout ---------- */
+  main{
+    max-width:1400px;margin:0 auto;padding:20px 24px 64px;
+    display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:20px;align-items:start;
+  }
+  @media (max-width:1080px){ main{grid-template-columns:minmax(0,1fr)} }
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;
+  }
+  .card > .hd{
+    padding:12px 18px;border-bottom:1px solid var(--line-2);
+    display:flex;align-items:center;gap:10px;background:var(--panel-2);
+  }
+  .card > .hd h2{font-size:13px;margin:0;font-weight:620;letter-spacing:.01em}
+  .card > .hd .note{color:var(--muted);font-size:11.5px;margin-left:auto}
+  .card > .bd{padding:18px}
+
+  /* ---------- ask ---------- */
+  .askrow{display:flex;gap:10px;flex-wrap:wrap}
+  .askrow input[type=text]{
+    flex:1 1 320px;min-width:0;padding:12px 14px;border:1px solid var(--line);
+    border-radius:10px;font:inherit;background:#fff;color:var(--ink);
+  }
+  .askrow input[type=text]:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  select,input[type=number]{
+    padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    font:inherit;background:#fff;color:var(--ink);
+  }
+  button{
+    padding:11px 18px;border-radius:10px;border:1px solid var(--accent);
+    background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer;
+    transition:filter .12s ease, transform .12s ease;
+  }
+  button:hover:not(:disabled){filter:brightness(1.07)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  button.ghost:hover:not(:disabled){background:var(--panel-2)}
+  .samples{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+  .samples .s{
+    border:1px dashed var(--line);background:#fff;border-radius:8px;padding:4px 10px;
+    font-size:12px;color:var(--ink-2);cursor:pointer;
+  }
+  .samples .s:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+  /* ---------- answer ---------- */
+  #answer{white-space:pre-wrap;word-break:break-word;min-height:26px;font-size:14.5px}
+  #answer .cursor{display:inline-block;width:7px;height:16px;background:var(--accent);
+    vertical-align:-2px;animation:blink 1s steps(2,start) infinite;border-radius:1px}
+  @keyframes blink{50%{opacity:0}}
+  .cite{
+    display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:5px;
+    padding:0 5px;font-size:11.5px;font-family:var(--mono);margin:0 2px;font-weight:600;
+  }
+  .modebar{display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .tag{font-size:11px;border-radius:6px;padding:2px 8px;font-family:var(--mono)}
+  .tag.gen{background:#eef0ff;color:#4338ca}
+  .tag.ext{background:#fff4e6;color:#b45309}
+
+  /* ---------- attempts ---------- */
+  .attempts{display:flex;flex-direction:column;gap:8px}
+  .att{
+    display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:9px;
+    background:var(--panel-2);border:1px solid var(--line-2);font-size:12.5px;
+  }
+  .att .rnd{font-family:var(--mono);color:var(--muted);font-size:11px}
+  .att .q{font-family:var(--mono);color:var(--ink);flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att .cov{font-family:var(--mono);font-size:11.5px}
+
+  /* ---------- bump chart ---------- */
+  #bump svg{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;font-size:11.5px;color:var(--muted)}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+  /* ---------- candidate table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:8px 9px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:top}
+  th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+    position:sticky;top:0;background:var(--panel)}
+  td.num{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+  .uid{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .snip{color:var(--ink-2);font-size:12px;max-width:560px}
+  .bar{height:5px;border-radius:3px;background:var(--line-2);overflow:hidden;min-width:42px}
+  .bar > i{display:block;height:100%;border-radius:3px}
+  .scroll{max-height:420px;overflow:auto}
+
+  /* ---------- checks ---------- */
+  .checks{display:flex;flex-direction:column;gap:6px}
+  /* 39 checks would stretch the right column to ~4000px and drag the whole
+     page with it — cap it and scroll inside instead. */
+  #checks{max-height:460px;overflow:auto;padding-right:4px}
+  /* flex-wrap lets a long detail string drop onto its own line rather than
+     crushing the check name to one character per line. */
+  .ck{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:flex-start;font-size:12.5px;padding:5px 0;
+    border-bottom:1px solid var(--line-2)}
+  .ck:last-child{border-bottom:0}
+  .ck .m{font-family:var(--mono);font-size:11px;flex:0 0 auto;font-weight:700}
+  .ck.ok .m{color:var(--ok)} .ck.no .m{color:var(--bad)}
+  .ck .d{color:var(--muted);font-size:11.5px;font-family:var(--mono);margin-left:auto;
+    text-align:right;flex:0 1 auto;min-width:0;max-width:100%;overflow-wrap:anywhere}
+  .ck .n{flex:1 1 auto;min-width:7em;overflow-wrap:anywhere}
+  .ckgroup{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin:12px 0 2px;font-weight:600}
+  .ckgroup:first-child{margin-top:0}
+  .sum{margin-top:14px;padding:10px 12px;border-radius:9px;font-weight:600;font-size:13px}
+  .sum.ok{background:#eefaf3;color:#0b6b45;border:1px solid #c7f0dc}
+  .sum.no{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+
+  /* ---------- misc ---------- */
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:12.5px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0;font-family:var(--mono);font-size:11.5px;word-break:break-all;text-align:right}
+  .empty{color:var(--muted);font-size:12.5px;padding:10px 0}
+  .spin{width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;display:inline-block;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:9px;
+    padding:10px 12px;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot">◆</span>
+    <h1>Glassbox</h1>
+    <span class="sub">离线玻璃盒检索增强引擎 · 看得见它怎么找到答案</span>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip">正在启动引擎…</span>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <!-- ============ ASK ============ -->
+    <section class="card">
+      <div class="hd">
+        <h2>提问</h2>
+        <span class="note" id="modenote"></span>
+      </div>
+      <div class="bd">
+        <div class="askrow">
+          <input type="text" id="q" placeholder="问点什么，例如：为什么混合检索要用 RRF 而不是加权分数相加？" autocomplete="off">
+          <select id="topk" title="返回片段数">
+            <option value="4">top 4</option>
+            <option value="6" selected>top 6</option>
+            <option value="8">top 8</option>
+          </select>
+          <button id="ask">检索并回答</button>
+          <button id="only" class="ghost" title="只跑检索，不生成">只看检索</button>
+        </div>
+        <div class="samples" id="samples"></div>
+      </div>
+    </section>
+
+    <!-- ============ ANSWER ============ -->
+    <section class="card" id="answercard">
+      <div class="hd">
+        <h2>回答</h2>
+        <span class="note" id="timing"></span>
+      </div>
+      <div class="bd">
+        <div id="answer" class="empty">尚未提问。输入问题后按回车。</div>
+        <div class="modebar" id="modebar"></div>
+      </div>
+    </section>
+
+    <!-- ============ BUMP CHART ============ -->
+    <section class="card">
+      <div class="hd">
+        <h2>排名流变</h2>
+        <span class="note">同一条候选在四个阶段的位次变化</span>
+      </div>
+      <div class="bd">
+        <div class="legend">
+          <span><i style="background:var(--sparse)"></i>BM25 稀疏</span>
+          <span><i style="background:var(--dense)"></i>稠密向量</span>
+          <span><i style="background:var(--fused)"></i>RRF 融合</span>
+          <span><i style="background:var(--rerank)"></i>交叉编码器重排</span>
+        </div>
+        <div id="bump"><div class="empty">检索后显示。</div></div>
+      </div>
+    </section>
+
+    <!-- ============ CANDIDATES ============ -->
+    <section class="card">
+      <div class="hd">
+        <h2>证据链</h2>
+        <span class="note" id="candnote"></span>
+      </div>
+      <div class="scroll">
+        <table id="cand">
+          <thead><tr>
+            <th style="width:34px">#</th><th>片段</th>
+            <th style="width:74px">BM25</th><th style="width:74px">稠密</th>
+            <th style="width:88px">RRF</th><th style="width:86px">重排</th>
+          </tr></thead>
+          <tbody><tr><td colspan="6"><div class="empty">检索后显示每个阶段的排名与得分。</div></td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ ATTEMPTS ============ -->
+    <section class="card">
+      <div class="hd">
+        <h2>自我纠错循环</h2>
+        <span class="note">覆盖率不足则改写查询再来一轮</span>
+      </div>
+      <div class="bd"><div class="attempts" id="attempts"><div class="empty">检索后显示。</div></div></div>
+    </section>
+
+  </div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <div class="col">
+    <section class="card">
+      <div class="hd"><h2>引擎</h2></div>
+      <div class="bd"><dl class="kv" id="stats"><dt>状态</dt><dd>加载中…</dd></dl></div>
+    </section>
+
+    <section class="card">
+      <div class="hd">
+        <h2>不变量自检</h2>
+        <span class="note" id="cknote"></span>
+      </div>
+      <div class="bd">
+        <button id="runcheck" class="ghost" style="width:100%">运行自检</button>
+        <div class="checks" id="checks" style="margin-top:14px"></div>
+        <div id="cksum"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>模型</h2></div>
+      <div class="bd"><dl class="kv" id="models"><dt>—</dt><dd></dd></dl></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var SAMPLES = [
+    "为什么混合检索要用 RRF 而不是加权分数相加？",
+    "交叉编码器重排为什么只能作用在候选短名单上",
+    "how does term frequency saturation work in BM25",
+    "chunk overlap 解决了什么问题",
+    "4 位量化为什么对本地部署特别重要"
+  ];
+
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  };
+  var STAGE_COLORS = { sparse:"var(--sparse)", dense:"var(--dense)", fused:"var(--fused)", reranked:"var(--rerank)" };
+  var PALETTE = ["#4f46e5","#0d9488","#ea580c","#7c3aed","#2563eb","#db2777","#059669","#b45309"];
+
+  var lastTrace = null;
+
+  /* ---------------- bootstrap ---------------- */
+  function chips(d){
+    var s = d.stats || {}, m = d.models || {}, ing = d.ingest || {};
+    var out = [];
+    out.push('<span class="chip">片段 <b>' + (s.chunks|0) + '</b></span>');
+    out.push('<span class="chip">文档 <b>' + (s.documents|0) + '</b></span>');
+    if (s.dim) out.push('<span class="chip">维度 <b>' + s.dim + '</b></span>');
+    if (s.embed_model) out.push('<span class="chip">嵌入 <b>' + esc(short(s.embed_model)) + '</b></span>');
+    out.push('<span class="chip' + (s.reranker?' on':'') + '">重排 <b>' + (s.reranker ? 'ON' : 'OFF') + '</b></span>');
+    out.push('<span class="chip' + (s.llm?' on':'') + '">本地模型 <b>' + (s.llm ? '已加载' : '未加载') + '</b></span>');
+    out.push('<span class="chip">向量后端 <b>' + esc(s.vector_backend || '—') + '</b></span>');
+    $("chips").innerHTML = out.join("");
+
+    var rows = [
+      ["片段 / 文档", (s.chunks|0) + " / " + (s.documents|0)],
+      ["向量维度", s.dim || "—"],
+      ["嵌入模型", short(s.embed_model || "—")],
+      ["重排模型", short(s.reranker || "未启用")],
+      ["向量后端", s.vector_backend || "—"],
+      ["生成模型", s.llm ? short(s.llm.split("/").pop()) : (s.llm_error ? "不可用" : "未下载")],
+      ["入库耗时", ing && ing.timings_ms ? ing.timings_ms.total + " ms" : "—"]
+    ];
+    $("stats").innerHTML = rows.map(function(r){
+      return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>";
+    }).join("");
+
+    var mr = [
+      ["HF 端点", m.hf_endpoint || "—"],
+      ["嵌入可用", (m.embed_count|0) + " 个候选"],
+      ["重排可用", (m.rerank_count|0) + " 个候选"]
+    ];
+    $("models").innerHTML = mr.map(function(r){
+      return "<dt>" + esc(r[0]) + "</dt><dd>" + esc(r[1]) + "</dd>";
+    }).join("");
+
+    $("modenote").innerHTML = s.llm
+      ? '生成模式：本地 GGUF'
+      : '生成模式：<b>摘录</b>（未加载本地模型，检索链路完全正常）';
+  }
+
+  function short(s){ return String(s).length > 26 ? String(s).slice(0,24) + "…" : String(s); }
+
+  function boot(){
+    $("chips").innerHTML = '<span class="chip">正在建立索引… <span class="spin"></span></span>';
+    fetch("/api/bootstrap").then(function(r){ return r.json(); }).then(function(d){
+      if (!d.ok) throw new Error(d.error || "bootstrap failed");
+      chips(d);
+    }).catch(function(e){
+      $("chips").innerHTML = '<span class="chip" style="border-color:#fecaca;color:#991b1b">引擎不可用</span>';
+      $("answer").innerHTML = '<div class="err">引擎启动失败：' + esc(e.message) + '</div>';
+    });
+  }
+
+  /* ---------------- ask ---------------- */
+  function setBusy(on){
+    $("ask").disabled = on; $("only").disabled = on;
+  }
+
+  function ask(stream){
+    var q = $("q").value.trim();
+    if (!q) return;
+    var topk = parseInt($("topk").value, 10) || 6;
+    setBusy(true);
+    $("answer").innerHTML = '<span class="spin"></span>';
+    $("modebar").innerHTML = "";
+    $("timing").textContent = "";
+    renderTrace(null);
+    $("attempts").innerHTML = '<div class="empty">检索中…</div>';
+
+    fetch("/api/ask", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ query: q, top_k: topk })
+    }).then(function(res){
+      if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = "", text = "";
+      $("answer").innerHTML = "";
+
+      function pump(){
+        return reader.read().then(function(r){
+          if (r.done) { $("answer").innerHTML = esc(text) + ''; return; }
+          buf += dec.decode(r.value, {stream:true});
+          var i;
+          while ((i = buf.indexOf("\n\n")) >= 0){
+            var raw = buf.slice(0, i); buf = buf.slice(i + 2);
+            if (raw.indexOf("data: ") !== 0) continue;
+            var ev;
+            try { ev = JSON.parse(raw.slice(6)); } catch(e){ continue; }
+            if (ev.type === "trace"){
+              renderTrace(ev.data);
+              $("modebar").innerHTML = '<span class="tag ' + (ev.mode === "generative" ? "gen" : "ext") + '">'
+                + (ev.mode === "generative" ? "本地生成" : "摘录模式") + '</span>'
+                + '<span class="chip">' + esc(ev.llm || "无本地模型") + '</span>';
+            } else if (ev.type === "token"){
+              text += ev.text;
+              $("answer").innerHTML = esc(text) + '<span class="cursor"></span>';
+            } else if (ev.type === "done"){
+              $("answer").innerHTML = esc(text).replace(/\[(\d+)\]/g, function(m,n){
+                return '<span class="cite">' + n + '</span>';
+              });
+              $("timing").textContent = "总耗时 " + ev.elapsed_ms + " ms";
+            } else if (ev.type === "error"){
+              $("answer").innerHTML = '<div class="err">' + esc(ev.message) + '</div>';
+            }
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function(e){
+      $("answer").innerHTML = '<div class="err">请求失败：' + esc(e.message) + '</div>';
+    }).then(function(){ setBusy(false); });
+  }
+
+  function retrieveOnly(){
+    var q = $("q").value.trim();
+    if (!q) return;
+    var topk = parseInt($("topk").value, 10) || 6;
+    setBusy(true);
+    $("answer").innerHTML = '<span class="empty">（只看检索 —— 未调用生成）</span>';
+    fetch("/api/retrieve?q=" + encodeURIComponent(q) + "&top_k=" + topk)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d.ok) throw new Error("retrieve failed");
+        renderTrace(d.trace);
+      })
+      .catch(function(e){ $("answer").innerHTML = '<div class="err">' + esc(e.message) + '</div>'; })
+      .then(function(){ setBusy(false); });
+  }
+
+  /* ---------------- render trace ---------------- */
+  function renderTrace(tr){
+    lastTrace = tr;
+    if (!tr){
+      $("bump").innerHTML = '<div class="empty">检索后显示。</div>';
+      $("cand").querySelector("tbody").innerHTML =
+        '<tr><td colspan="6"><div class="empty">检索后显示每个阶段的排名与得分。</div></td></tr>';
+      $("candnote").textContent = "";
+      return;
+    }
+
+    // --- bump chart -------------------------------------------------
+    drawBump(tr);
+
+    // --- candidate table --------------------------------------------
+    var g = tr.grade || {};
+    $("candnote").textContent = "覆盖率 " + ((g.coverage||0)*100).toFixed(0)
+      + "% · 判定 " + (g.decision === "answer" ? "可回答" : "需改写");
+
+    var stages = { sparse: tr.stage_sparse, dense: tr.stage_dense,
+                   fused: tr.stage_fused, reranked: tr.stage_reranked };
+    var byIdx = {};
+    Object.keys(stages).forEach(function(k){
+      (stages[k] || []).forEach(function(row){
+        (byIdx[row.index] = byIdx[row.index] || {})[k] = row;
+      });
+    });
+    var bm = { sparse: 0, dense: 0, fused: 0, reranked: 0 };
+    ["sparse","dense","fused","reranked"].forEach(function(k){
+      (stages[k] || []).forEach(function(r){ bm[k] = Math.max(bm[k], Math.abs(r.score)); });
+    });
+
+    var rows = tr.hits.map(function(h, n){
+      var e = byIdx[h.index] || {};
+      function cell(k){
+        var r = e[k];
+        var s = r ? r.score : null;
+        var w = (s != null && bm[k]) ? Math.max(3, Math.min(100, Math.abs(s)/bm[k]*100)) : 0;
+        return '<td class="num">'
+          + (r ? '#' + r.rank : '<span style="color:var(--muted)">—</span>')
+          + (s != null ? '<div class="bar" style="margin-top:4px"><i style="width:' + w.toFixed(1) + '%;background:' + STAGE_COLORS[k] + '"></i></div>' : '')
+          + '</td>';
+      }
+      return '<tr>'
+        + '<td class="num">' + (n + 1) + '</td>'
+        + '<td><div><b>' + esc(h.title) + '</b> <span class="uid">' + esc(h.uid) + '</span></div>'
+        + '<div class="snip">' + esc(h.text.slice(0, 200)) + '…</div></td>'
+        + cell("sparse") + cell("dense") + cell("fused") + cell("reranked")
+        + '</tr>';
+    }).join("");
+    $("cand").querySelector("tbody").innerHTML = rows
+      || '<tr><td colspan="6"><div class="empty">没有命中。</div></td></tr>';
+
+    // --- attempts ---------------------------------------------------
+    var at = tr.attempts || [];
+    $("attempts").innerHTML = at.length ? at.map(function(a){
+      if (a.rewritten_to){
+        return '<div class="att"><span class="rnd">改写</span>'
+          + '<span class="q">' + esc(a.rewritten_to) + '</span>'
+          + '<span class="cov" style="color:var(--accent)">' + esc(a.mode) + '</span></div>';
+      }
+      var cov = (a.coverage || 0);
+      var col = cov >= .6 ? "var(--ok)" : "var(--bad)";
+      return '<div class="att">'
+        + '<span class="rnd">R' + a.round + '</span>'
+        + '<span class="q">' + esc(a.query) + '</span>'
+        + '<span class="cov" style="color:' + col + '">覆盖 ' + (cov*100).toFixed(0) + '%</span>'
+        + '<span class="cov" style="color:var(--muted)">' + esc(a.decision) + '</span></div>';
+    }).join("") : '<div class="empty">（未记录到尝试）</div>';
+  }
+
+  /* ---------------- bump chart (SVG) ---------------- */
+  function drawBump(tr){
+    var stages = ["sparse","dense","fused","reranked"];
+    var labels = ["BM25","稠密","RRF","重排"];
+    var data = { sparse: tr.stage_sparse, dense: tr.stage_dense,
+                 fused: tr.stage_fused, reranked: tr.stage_reranked };
+
+    // which candidates to draw: the ones in the final list
+    var finalIdx = tr.hits.map(function(h){ return h.index; });
+    if (!finalIdx.length){ $("bump").innerHTML = '<div class="empty">没有命中。</div>'; return; }
+
+    var W = 860, H = 330, PADL = 74, PADR = 150, PADT = 22, PADB = 30;
+    var innerW = W - PADL - PADR, innerH = H - PADT - PADB;
+    var maxRank = 11;   // ranks are capped at 12 rows upstream
+    var colX = stages.map(function(_, i){ return PADL + innerW * (i / (stages.length - 1)); });
+    var rowY = function(rank){ return PADT + innerH * (rank / maxRank); };
+
+    // index -> rank per stage (plus score for the label)
+    var pos = {};
+    stages.forEach(function(k){
+      (data[k] || []).forEach(function(r){
+        pos[r.index] = pos[r.index] || {};
+        pos[r.index][k] = r;
+      });
+    });
+
+    var svg = [];
+    svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="排名流变图">');
+
+    // grid
+    for (var r = 0; r <= maxRank; r++){
+      svg.push('<line x1="' + PADL + '" y1="' + rowY(r).toFixed(1) + '" x2="' + (PADL + innerW)
+        + '" y2="' + rowY(r).toFixed(1) + '" stroke="#eef0f4" stroke-width="1"/>');
+      svg.push('<text x="' + (PADL - 10) + '" y="' + (rowY(r) + 4).toFixed(1)
+        + '" text-anchor="end" font-size="10" font-family="monospace" fill="#9aa1ac">#' + r + '</text>');
+    }
+    // stage labels + colour spine
+    stages.forEach(function(k, i){
+      svg.push('<line x1="' + colX[i] + '" y1="' + PADT + '" x2="' + colX[i] + '" y2="' + (PADT + innerH)
+        + '" stroke="' + STAGE_COLORS[k] + '" stroke-width="2" opacity=".28"/>');
+      svg.push('<text x="' + colX[i] + '" y="' + (H - 9) + '" text-anchor="middle" font-size="11.5" fill="#414651">'
+        + labels[i] + '</text>');
+    });
+
+    // lines: one per candidate, coloured by final position
+    finalIdx.forEach(function(idx, n){
+      var colour = PALETTE[n % PALETTE.length];
+      var pts = [];
+      stages.forEach(function(k, i){
+        var cell = pos[idx] && pos[idx][k];
+        if (!cell) return;
+        pts.push([colX[i], rowY(Math.min(cell.rank, maxRank)), cell]);
+      });
+      if (pts.length < 2) return;
+      var d = pts.map(function(p, i){ return (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1); }).join(" ");
+      svg.push('<path d="' + d + '" fill="none" stroke="' + colour + '" stroke-width="2" stroke-linejoin="round" opacity=".85"/>');
+      pts.forEach(function(p){
+        svg.push('<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4" fill="#fff" stroke="'
+          + colour + '" stroke-width="2"/>');
+      });
+      // right-hand label
+      var last = pts[pts.length - 1];
+      var meta = pos[idx];
+      svg.push('<text x="' + (last[0] + 10) + '" y="' + (last[1] + 4).toFixed(1)
+        + '" font-size="10.5" fill="#414651" font-family="monospace">'
+        + esc(String(meta.fused ? meta.fused.uid : (meta.reranked ? meta.reranked.uid : "#" + idx)))
+        + '</text>');
+    });
+
+    svg.push('</svg>');
+    $("bump").innerHTML = svg.join("");
+  }
+
+  /* ---------------- self-test ---------------- */
+  function runCheck(){
+    var box = $("checks");
+    box.innerHTML = '<div class="empty">运行中… <span class="spin"></span></div>';
+    $("cksum").innerHTML = "";
+    fetch("/api/selftest").then(function(r){ return r.json(); }).then(function(d){
+      var groups = {}, order = [];
+      d.checks.forEach(function(c){
+        if (!groups[c.group]) { groups[c.group] = []; order.push(c.group); }
+        groups[c.group].push(c);
+      });
+      var html = "";
+      order.forEach(function(g){
+        html += '<div class="ckgroup">' + esc(g) + '</div>';
+        groups[g].forEach(function(c){
+          html += '<div class="ck ' + (c.passed ? 'ok' : 'no') + '">'
+            + '<span class="m">' + (c.passed ? 'PASS' : 'FAIL') + '</span>'
+            + '<span class="n">' + esc(c.name) + '</span>'
+            + '<span class="d">' + esc(c.detail || '') + '</span></div>';
+        });
+      });
+      box.innerHTML = html;
+      $("cksum").innerHTML = '<div class="sum ' + (d.ok ? 'ok' : 'no') + '">'
+        + d.passed + ' / ' + d.total + (d.ok ? ' 全部通过 · ALL GREEN' : ' 存在失败项') + '</div>';
+      $("cknote").textContent = d.passed + "/" + d.total;
+    }).catch(function(e){
+      box.innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+    });
+  }
+
+  /* ---------------- wiring ---------------- */
+  $("ask").addEventListener("click", function(){ ask(true); });
+  $("only").addEventListener("click", retrieveOnly);
+  $("q").addEventListener("keydown", function(e){ if (e.key === "Enter") ask(true); });
+  $("runcheck").addEventListener("click", runCheck);
+
+  $("samples").innerHTML = SAMPLES.map(function(s){
+    return '<span class="s">' + esc(s) + '</span>';
+  }).join("");
+  Array.prototype.forEach.call($("samples").querySelectorAll(".s"), function(el){
+    el.addEventListener("click", function(){ $("q").value = el.textContent; ask(true); });
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

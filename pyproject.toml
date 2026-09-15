@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glassbox"
+version = "1.0.0"
+description = "Offline, glass-box retrieval-augmented generation engine — every stage of retrieval is measured and shown"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "晨星" }]
+keywords = [
+  "rag", "retrieval-augmented-generation", "hybrid-search", "bm25",
+  "embeddings", "reranking", "rrf", "faiss", "fastembed", "onnx",
+  "offline", "local-first", "llama.cpp",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Text Processing :: Indexing",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "numpy>=1.24",
+  "fastembed>=0.4.0",
+  "faiss-cpu>=1.8.0",
+  "rank_bm25>=0.2.2",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "pypdf>=4.0",
+  "python-multipart>=0.0.9",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# prebuilt CPU wheels, no compiler needed:
+#   pip install "glassbox[llm]" --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+llm = ["llama-cpp-python>=0.3.2"]
+
+[project.scripts]
+glassbox = "glassbox.cli:main"
+
+[tool.setuptools]
+packages = ["glassbox"]
+
+[tool.setuptools.package-data]
+glassbox = ["../static/*"]

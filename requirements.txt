@@ -1,0 +1,20 @@
+# Glassbox runtime dependencies
+# Python 3.10+ (developed and verified on 3.13)
+#
+#   python -m venv .venv
+#   .venv/Scripts/pip install -r requirements.txt        (Windows)
+#   .venv/bin/pip     install -r requirements.txt        (macOS / Linux)
+#
+# Optional local generation (prebuilt CPU wheels, no compiler required):
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+# Glassbox runs fully without it — it degrades to a grounded extractive answer.
+
+numpy>=1.24
+fastembed>=0.4.0
+faiss-cpu>=1.8.0
+rank_bm25>=0.2.2
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pypdf>=4.0
+python-multipart>=0.0.9
+requests>=2.31

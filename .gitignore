@@ -1,0 +1,19 @@
+# runtime data: index, vectors, downloaded models, uploads
+.glassbox/
+corpus/_uploads/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# local scratch
+_probe.txt
+_*.log
+_*.json
+!package.json

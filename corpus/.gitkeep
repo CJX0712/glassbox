@@ -1,0 +1,11 @@
+# Put your own documents here (.md / .markdown / .txt / .rst / .pdf) and rebuild:
+#
+#   python -m glassbox ingest      # index everything under corpus/
+#   python -m glassbox serve       # start the UI
+#
+# run.sh / run.bat seed the 12 bundled demo documents into this folder on first
+# launch, then never touch it again. To restore them after editing, run:
+#
+#   python scripts/seed_corpus.py --force
+#
+# This file only exists so git keeps the (otherwise empty) folder.
