@@ -51,6 +51,16 @@ class Settings:
     rrf_k: int = _env_int("GLASSBOX_RRF_K", 60)
     top_k: int = _env_int("GLASSBOX_TOPK", 8)
     rerank_top_n: int = _env_int("GLASSBOX_RERANK_TOPN", 6)
+
+    # Weight of the cross-encoder in the second-stage fusion.  The reranked
+    # list is fused *with* the first-stage RRF order rather than replacing it,
+    # so this is how much the reranker may pull on the final ordering.  0.5 was
+    # measured as the sweet spot on the bundled bilingual corpus: it reached
+    # 12/12 top-1 on 12 Chinese queries, where plain RRF scored 11/12 and an
+    # equal-weight (1.0) fusion scored 11/12 — i.e. a heavy-handed reranker is
+    # worse than a hedged one.  Set to 0 to ignore the reranker's ordering.
+    rerank_weight: float = float(os.environ.get("GLASSBOX_RERANK_WEIGHT", "0.5"))
+
     # How many candidates each first-stage retriever hands to the fusion step.
     fanout: int = _env_int("GLASSBOX_FANOUT", 30)
 

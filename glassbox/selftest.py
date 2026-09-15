@@ -374,6 +374,43 @@ def run_all(engine: "Glassbox") -> list[Check]:
     else:
         add("rerank", "重排器（未启用，已优雅降级）", True, f"model={resolve_rerank_model()}")
 
+    # The reranker is a signal, not a veto.  Inject a hostile cross-encoder
+    # that scores the shortlist in exactly the reverse order and assert the
+    # first-stage fusion's winner still comes out on top.  This is a regression
+    # guard for a real bug: the final order used to *be* the reranked order, so
+    # an English-only reranker silently demoted correct Chinese results
+    # (10/12 vs 11/12 top-1 on the bundled corpus).  With the second-stage
+    # weight below 1.0 the arithmetic guarantees the guard cannot flake:
+    # winner 1/(k+1) + 0.5/(k+n) beats runner-up 1/(k+n) + 0.5/(k+1).
+    class _AdversarialReranker:
+        name = "adversarial"
+        enabled = True
+
+        def score(self, query: str, documents) -> list[float]:
+            # best-first ordering of the worst possible kind: a full reversal
+            return [float(i) for i in range(len(documents))]
+
+    probe = "cross encoder reranking shortlist"
+    plain = engine.retrieve(probe, top_k=3, use_rerank=False)
+    saved = (engine._reranker, engine._reranker_resolved)
+    engine._reranker, engine._reranker_resolved = _AdversarialReranker(), True
+    try:
+        hostile = engine.retrieve(probe, top_k=3, use_rerank=True)
+    finally:
+        engine._reranker, engine._reranker_resolved = saved
+    add(
+        "rerank",
+        "对抗性重排无法推翻融合榜首",
+        hostile.hits[0].index == plain.hits[0].index,
+        f"fused#{plain.hits[0].index} -> final#{hostile.hits[0].index} (w={engine.s.rerank_weight})",
+    )
+    add(
+        "rerank",
+        "重排仍作为独立信号留证",
+        hostile.reranker == "adversarial" and bool(hostile.stage_reranked),
+        f"stage_reranked={len(hostile.stage_reranked)} entries",
+    )
+
     # ==================================================================
     # 7. generation runtime
     # ==================================================================

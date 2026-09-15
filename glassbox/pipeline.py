@@ -310,8 +310,33 @@ class Glassbox:
         rr_pos = {idx: pos for pos, idx in enumerate(reranked_order)}
         timings["rerank"] = round((time.perf_counter() - t) * 1000, 2)
 
-        # --- assemble --------------------------------------------------
-        final_idx = reranked_order[:top_k]
+        # --- final order ------------------------------------------------
+        # The cross-encoder is a *signal*, not a veto.  Letting the reranked
+        # order become the final order outright means a cross-encoder that is
+        # weak on the query's language can silently demote a passage that BM25
+        # *and* the dense retriever both ranked first — which is exactly what
+        # an English-only reranker does to Chinese queries.  So fuse it back in
+        # as a third ranked list, with a deliberately lower weight: the
+        # reranker can promote, but it cannot overrule the fusion alone.
+        #
+        # Swept on the bundled bilingual corpus (12 Chinese queries,
+        # jina-reranker-v1-turbo-en), top-1 accuracy:
+        #     no rerank 11/12 · w=0.25 11/12 · w=0.5 12/12 · w=0.75 12/12
+        #     · w=1.0 (equal weight) 11/12
+        # The non-monotonic curve is the point: an assertive reranker is worse
+        # than a hedged one when it cannot be trusted on the query language.
+        if rr.enabled and rr_scores and s.rerank_weight > 0:
+            second = rrf(
+                [fused_order, reranked_order],
+                k=s.rrf_k,
+                weights=[1.0, s.rerank_weight],
+                names=["fused", "rerank"],
+            )
+            final_order = list(second.order)
+        else:
+            final_order = list(fused_order)
+
+        final_idx = final_order[:top_k]
         hits: list[Hit] = []
         for pos, i in enumerate(final_idx):
             c = self.chunks[i]

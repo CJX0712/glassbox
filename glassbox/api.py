@@ -101,6 +101,7 @@ def bootstrap() -> JSONResponse:
                 "chunk_chars": eng.s.chunk_chars,
                 "chunk_overlap": eng.s.chunk_overlap,
                 "rrf_k": eng.s.rrf_k,
+                "rerank_weight": eng.s.rerank_weight,
                 "top_k": eng.s.top_k,
                 "fanout": eng.s.fanout,
                 "max_rewrites": eng.s.max_rewrites,
