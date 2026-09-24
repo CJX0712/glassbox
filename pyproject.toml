@@ -36,7 +36,7 @@ dependencies = [
 [project.optional-dependencies]
 # prebuilt CPU wheels, no compiler needed:
 #   pip install "glassbox[llm]" --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-llm = ["llama-cpp-python>=0.3.2"]
+llm = ["llama-cpp-python>=0.3.35"]
 
 [project.scripts]
 glassbox = "glassbox.cli:main"
