@@ -1,5 +1,12 @@
 # Glassbox
 
+<div align="center">
+
+[![License](https://img.shields.io/badge/License-MIT-green)](https://github.com/CJX0712/glassbox/blob/main/LICENSE) [![Language](https://img.shields.io/badge/Python-3776AB?logo=python)](https://github.com/CJX0712/glassbox) [![Author](https://img.shields.io/badge/author-晨星-blueviolet)](https://github.com/CJX0712)
+
+</div>
+
+
 [![selftest](https://github.com/CJX0712/glassbox/actions/workflows/selftest.yml/badge.svg)](https://github.com/CJX0712/glassbox/actions/workflows/selftest.yml)
 
 **全离线 · 玻璃盒式检索增强生成引擎 —— 它不只给答案，还给「它是怎么找到这个答案的」。**
